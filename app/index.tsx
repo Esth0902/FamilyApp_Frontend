@@ -1,9 +1,7 @@
 
 import { AppButton } from "@/src/components/AppButton";
 import { Colors, Fonts } from "@/src/constants/theme";
-import { useAuthStore } from "@/src/store/useAuthStore";
 import { useRouter } from "expo-router";
-import React, { useEffect } from "react";
 import {
   Dimensions,
   Image,
@@ -19,16 +17,6 @@ export default function PublicHome() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
-  
-  const token = useAuthStore((state) => state.token);
-  const hydrated = useAuthStore((state) => state.hydrated);
-
-  // Si l'utilisateur est déjà connecté, on l'envoie direct sur Home
-  useEffect(() => {
-    if (hydrated && token) {
-      router.replace("/(app)/home");
-    }
-  }, [hydrated, token]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>

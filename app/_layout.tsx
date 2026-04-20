@@ -1,17 +1,16 @@
-// app/_layout.tsx
+import { API_BASE_URL, isApiClientError, subscribeToApiUnauthorized } from "@/src/lib/api-client";
+import { useAuthStore } from "@/src/store/useAuthStore";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
+import { Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
-import { isApiClientError, subscribeToApiUnauthorized } from "@/src/lib/api-client";
-import { useAuthStore } from "@/src/store/useAuthStore";
-
-//On empêche l'écran de chargement de disparaître tant qu'on a pas vérifié la session
+// On empêche l'écran de chargement de disparaître tant qu'on n'a pas vérifié la session
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-//Configuration de React Query
+// Configuration de React Query
 const createQueryClient = () =>
   new QueryClient({
     defaultOptions: {
@@ -31,7 +30,7 @@ const createQueryClient = () =>
 
 export default function RootLayout() {
   const [queryClient] = useState(createQueryClient);
-  
+
   // On récupère les fonctions et l'état depuis le store Zustand
   const hydrate = useAuthStore((state) => state.hydrate);
   const hydrated = useAuthStore((state) => state.hydrated);
@@ -41,50 +40,95 @@ export default function RootLayout() {
   const segments = useSegments();
   const router = useRouter();
 
-  //Hydratation initiale de la session (lecture du SecureStore)
+  // Si la config API est absente, on cache le splash et on affiche un écran explicite
   useEffect(() => {
+    if (!API_BASE_URL) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, []);
+
+  // Hydratation initiale de la session (lecture du SecureStore)
+  useEffect(() => {
+    if (!API_BASE_URL) return;
     hydrate().catch(console.error);
   }, [hydrate]);
 
-  //Intercepteur global : Si l'API renvoie 401 (Session expirée), on déconnecte l'utilisateur
+  // Intercepteur global : si l'API renvoie 401, on déconnecte l'utilisateur
   useEffect(() => {
+    if (!API_BASE_URL) return;
+
     const unsubscribe = subscribeToApiUnauthorized(() => {
       console.warn("Session expirée (401) - Déconnexion automatique");
       logout().catch(console.error);
       queryClient.clear();
     });
+
     return unsubscribe;
   }, [logout, queryClient]);
 
-  //Le "Route Guard" : Redirection automatique selon l'état de connexion
+  // Route Guard : redirection automatique selon l'état de connexion
   useEffect(() => {
+    if (!API_BASE_URL) return;
     if (!hydrated) return; // On attend que le SecureStore ait fini de charger
 
-    const inAuthGroup = segments[0] === "(auth)" || !segments[0]; // On considère la route racine comme faisant partie de l'authentification
+    const inAuthGroup = segments[0] === "(auth)" || !segments[0];
     const isAuthenticated = !!token;
 
     if (!isAuthenticated && !inAuthGroup) {
-      // Utilisateur NON connecté qui essaie d'aller dans l'app -> Redirection vers Login
       router.replace("/(auth)/login");
     } else if (isAuthenticated && inAuthGroup) {
-      // Utilisateur CONNECTÉ qui est sur la page de Login -> Redirection vers l'App
       router.replace("/(app)/home");
     }
 
-    //On cache le Splash Screen
+    // On cache le Splash Screen
     SplashScreen.hideAsync().catch(() => {});
   }, [hydrated, token, segments, router]);
 
-  // Tant que l'hydratation n'est pas finie, on n'affiche rien (le Splash Screen reste visible)
+  if (!API_BASE_URL) {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <QueryClientProvider client={queryClient}>
+          <View
+            style={{
+              flex: 1,
+              justifyContent: "center",
+              alignItems: "center",
+              padding: 24,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 20,
+                fontWeight: "700",
+                marginBottom: 12,
+                textAlign: "center",
+              }}
+            >
+              Configuration API manquante
+            </Text>
+            <Text
+              style={{
+                textAlign: "center",
+                opacity: 0.8,
+              }}
+            >
+              Vérifie EXPO_PUBLIC_API_URL, EXPO_PUBLIC_API_URL_LOCAL ou EXPO_PUBLIC_API_URL_ONLINE.
+            </Text>
+          </View>
+        </QueryClientProvider>
+      </GestureHandlerRootView>
+    );
+  }
+
+  // Tant que l'hydratation n'est pas finie, on n'affiche rien
   if (!hydrated) {
-    return null; 
+    return null;
   }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <Stack screenOptions={{ headerShown: false }}>
-          {/* Définition de nos deux grands groupes de navigation */}
           <Stack.Screen name="(auth)" options={{ headerShown: false }} />
           <Stack.Screen name="(app)" options={{ headerShown: false }} />
         </Stack>

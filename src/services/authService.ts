@@ -10,6 +10,8 @@ import {
     type AuthUser,
 } from "@/src/store/useAuthStore";
 
+let logoutPromise: Promise<void> | null = null;
+
 type AuthApiResponse = {
   access_token?: unknown;
   token?: unknown;
@@ -241,16 +243,25 @@ export const login = async (payload: LoginPayload): Promise<AuthResult> => {
 };
 
 export const logout = async (): Promise<void> => {
-  try {
-    await apiFetch("/logout", {
-      method: "POST",
-    });
-  } catch (error) {
-    const authError = toAuthServiceError(error, "Impossible de fermer la session côté serveur.");
-    if (authError.kind !== "unauthorized") {
-      console.warn("Logout backend error:", authError);
-    }
-  } finally {
-    await logoutAuth();
+  if (logoutPromise) {
+    return logoutPromise;
   }
+
+  logoutPromise = (async () => {
+    try {
+      await apiFetch("/logout", {
+        method: "POST",
+      });
+    } catch (error) {
+      const authError = toAuthServiceError(error, "Impossible de fermer la session côté serveur.");
+      if (authError.kind !== "unauthorized") {
+        console.warn("Logout backend error:", authError);
+      }
+    } finally {
+      await logoutAuth();
+      logoutPromise = null;
+    }
+  })();
+
+  return logoutPromise;
 };

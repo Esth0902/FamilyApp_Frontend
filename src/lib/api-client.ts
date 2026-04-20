@@ -287,10 +287,9 @@ export const apiFetch = async (endpoint: string, options: ApiFetchOptions = {}) 
       endpoint: cleanEndpoint,
     });
 
-    if (isApiUnauthorizedError(normalizedError)) {
+    if (isApiUnauthorizedError(normalizedError) && cleanEndpoint !== "/logout") {
       notifyApiUnauthorized(normalizedError);
     }
-
     throw normalizedError;
   }
 

@@ -98,6 +98,18 @@ export const useAuthStore = create<AuthStoreState>((set, get) => ({
           set(snapshot);
           return snapshot;
         })
+        .catch((error) => {
+          console.error("Failed to hydrate auth state", error);
+
+          const fallbackSnapshot: AuthSnapshot = {
+            hydrated: true,
+            token: null,
+            user: null,
+          };
+
+          set(fallbackSnapshot);
+          return fallbackSnapshot;
+        })
         .finally(() => {
           hydratePromise = null;
         });
