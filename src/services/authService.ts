@@ -57,6 +57,17 @@ export type LoginPayload = {
   password: string;
 };
 
+export type RegisterPayload = {
+  name: string;
+  email: string;
+  password: string;
+  passwordConfirmation: string;
+};
+
+export type ForgotPasswordPayload = {
+  email: string;
+};
+
 export type AuthResult = {
   token: string;
   user: AuthUser | null;
@@ -239,6 +250,44 @@ export const login = async (payload: LoginPayload): Promise<AuthResult> => {
     return await buildAuthResult(response ?? {});
   } catch (error) {
     throw toAuthServiceError(error, "Identifiants incorrects.");
+  }
+};
+
+export const register = async (payload: RegisterPayload): Promise<AuthResult> => {
+  try {
+    const response = (await apiFetch("/register", {
+      method: "POST",
+      body: JSON.stringify({
+        name: payload.name,
+        email: payload.email,
+        password: payload.password,
+        password_confirmation: payload.passwordConfirmation,
+      }),
+    })) as AuthApiResponse | null;
+
+    return await buildAuthResult(response ?? {});
+  } catch (error) {
+    throw toAuthServiceError(error, "Inscription impossible.");
+  }
+};
+
+export const forgotPassword = async (payload: ForgotPasswordPayload): Promise<{ message: string }> => {
+  try {
+    const response = (await apiFetch("/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({
+        email: payload.email,
+      }),
+    })) as { message?: unknown } | null;
+
+    return {
+      message:
+        typeof response?.message === "string" && response.message.trim().length > 0
+          ? response.message
+          : "Si un compte existe avec cette adresse e-mail, un lien de réinitialisation a été envoyé.",
+    };
+  } catch (error) {
+    throw toAuthServiceError(error, "Impossible d'envoyer l'e-mail de réinitialisation.");
   }
 };
 

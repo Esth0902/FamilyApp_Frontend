@@ -61,7 +61,8 @@ export function ScreenHeader({
           paddingTop: safeTop ? insets.top + 16 : 16,
           marginBottom: bottomSpacing,
           borderBottomWidth: showBorder ? 1 : 0,
-          borderBottomColor: theme.icon + "20",
+          borderBottomColor: theme.icon,
+          paddingBottom: showBorder ? 12 : 0,
         },
         containerStyle,
       ]}

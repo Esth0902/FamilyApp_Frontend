@@ -1,27 +1,32 @@
+import { AppButton } from "@/src/components/AppButton";
+import { AppTextInput } from "@/src/components/AppTextInput";
+import { ScreenHeader } from "@/src/components/ScreenHeader";
+import { Colors } from "@/src/constants/theme";
+import {
+    register,
+    toAuthServiceError,
+    type RegisterPayload,
+} from "@/src/services/authService";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
+    Alert,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
     StyleSheet,
     TouchableOpacity,
     useColorScheme,
-    View
+    View,
 } from "react-native";
-
-import { AppButton } from "@/src/components/AppButton";
-import { AppTextInput } from "@/src/components/AppTextInput";
-import { ScreenHeader } from "@/src/components/ScreenHeader";
-import { Colors } from "@/src/constants/theme";
 
 export default function Register() {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? "light"];
 
-  // États du formulaire
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,29 +35,36 @@ export default function Register() {
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  /*const registerMutation = useMutation({
+  const registerMutation = useMutation({
     mutationFn: (payload: RegisterPayload) => register(payload),
     onSuccess: (result) => {
-      // Redirection vers le setup ou home (Vérifie bien le chemin V2)
-      router.replace(result.mustChangePassword ? "/change-credentials" : "/(app)/home");
+      router.replace(/*result.mustChangePassword ? "/change-credentials" : */"/(app)/home");
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       const authError = toAuthServiceError(error, "Inscription impossible.");
-      // Si ton backend renvoie des erreurs de validation (ex: Laravel 422)
-      if (error?.status === 422 && error?.data?.errors) {
-        setFieldErrors(error.data.errors);
-      } else {
-        Alert.alert("Erreur", authError.message);
+
+      if (authError.kind === "validation" && authError.fieldErrors) {
+        setFieldErrors(authError.fieldErrors);
+        return;
       }
+
+      Alert.alert("Erreur", authError.message);
     },
   });
 
   const onRegister = () => {
     setFieldErrors({});
+
     if (!name.trim() || !email.trim() || !password || !passwordConfirm) {
       Alert.alert("Oups", "Merci de remplir tous les champs.");
       return;
     }
+
+    if (password.length < 8) {
+      Alert.alert("Oups", "Le mot de passe doit contenir au moins 8 caractères.");
+      return;
+    }
+
     if (password !== passwordConfirm) {
       Alert.alert("Oups", "Les mots de passe ne correspondent pas.");
       return;
@@ -65,18 +77,17 @@ export default function Register() {
       passwordConfirmation: passwordConfirm,
     });
   };
-*/
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={[styles.container, { backgroundColor: theme.background }]}
     >
-      <ScrollView 
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* --- SECTION HAUT --- */}
         <View>
           <ScreenHeader
             title="Créer un compte"
@@ -111,7 +122,7 @@ export default function Register() {
               onChangeText={setPassword}
               error={fieldErrors.password}
               rightSlot={
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)}>
                   <MaterialCommunityIcons
                     name={showPassword ? "eye-off-outline" : "eye-outline"}
                     size={22}
@@ -127,9 +138,9 @@ export default function Register() {
               secureTextEntry={!showPasswordConfirm}
               value={passwordConfirm}
               onChangeText={setPasswordConfirm}
-              error={fieldErrors.password_confirmation}
+              error={fieldErrors.passwordConfirmation ?? fieldErrors.password_confirmation}
               rightSlot={
-                <TouchableOpacity onPress={() => setShowPasswordConfirm(!showPasswordConfirm)}>
+                <TouchableOpacity onPress={() => setShowPasswordConfirm((prev) => !prev)}>
                   <MaterialCommunityIcons
                     name={showPasswordConfirm ? "eye-off-outline" : "eye-outline"}
                     size={22}
@@ -141,13 +152,12 @@ export default function Register() {
           </View>
         </View>
 
-        {/* --- SECTION BAS --- */}
         <View style={styles.footer}>
           <AppButton
             title="Créer mon compte"
             variant="primary"
-            //loading={registerMutation.isPending}
-            //onPress={onRegister}
+            loading={registerMutation.isPending}
+            onPress={onRegister}
           />
 
           <AppButton
@@ -166,7 +176,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    flexGrow: 1, // Crucial pour que le justifyContent: space-between fonctionne
+    flexGrow: 1,
     justifyContent: "space-between",
     paddingBottom: 40,
   },
